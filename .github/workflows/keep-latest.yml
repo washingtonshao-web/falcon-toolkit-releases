@@ -1,0 +1,22 @@
+# Installed Falcon Toolkit copies read this repo's Latest release, so Latest must stay on a Falcon release.
+name: Keep Latest on Falcon Toolkit
+on:
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  keep-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          latest=$(gh api "repos/$REPO/releases/latest" --jq .tag_name)
+          echo "Latest is $latest"
+          if echo "$latest" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then exit 0; fi
+          tag=$(gh api "repos/$REPO/releases?per_page=100" --jq '.[] | select(.draft | not) | select(.prerelease | not) | .tag_name' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          echo "Putting Latest back on $tag"
+          gh release edit "$tag" --repo "$REPO" --latest
